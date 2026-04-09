@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>30,000 Lines Overnight — TypeScript Migration Talk</title>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; font-family: 'Inter', sans-serif; color: #e5e7eb; }
+
+/* ===== PRESENTATION SHELL ===== */
+.deck { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+.slide {
+  position: absolute; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: flex; flex-direction: column;
+  background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.45s ease;
+  overflow: hidden;
+}
+.slide.active { opacity: 1; pointer-events: auto; z-index: 2; }
+
+/* ===== NAV CONTROLS ===== */
+.nav-btn {
+  position: fixed; top: 50%; z-index: 100;
+  transform: translateY(-50%);
+  background: rgba(30,30,30,0.7); border: 1px solid #30363d;
+  color: #9ca3af; font-size: 24px;
+  width: 48px; height: 48px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  backdrop-filter: blur(4px);
+}
+.nav-btn:hover { background: rgba(0,217,255,0.15); color: #00D9FF; }
+.nav-btn.prev { left: 16px; }
+.nav-btn.next { right: 16px; }
+
+/* ===== SLIDE COUNTER ===== */
+.slide-counter {
+  position: fixed; bottom: 20px; right: 24px; z-index: 100;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  color: #6b7280; background: rgba(13,17,23,0.8);
+  padding: 6px 14px; border-radius: 20px; border: 1px solid #30363d;
+}
+
+/* ===== PROGRESS BAR ===== */
+.progress-bar-global {
+  position: fixed; bottom: 0; left: 0; width: 100%; height: 4px;
+  background: #30363d; z-index: 100;
+}
+.progress-bar-global .fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #00D9FF, #FFB800);
+  transition: width 0.35s ease;
+}
+
+/* ===== SHARED SLIDE STYLES ===== */
+.slide-inner {
+  width: 100%; max-width: 1280px; height: 100%; max-height: 720px;
+  margin: auto; padding: 40px 60px;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+.slide-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 24px; flex-shrink: 0;
+}
+.slide-title {
+  font-size: clamp(28px, 3vw, 36px); font-weight: 700; color: #fff;
+  letter-spacing: -0.02em;
+}
+.slide-subtitle { font-size: 16px; color: #9ca3af; margin-top: 4px; }
+.badge {
+  padding: 8px 16px; border-radius: 20px; font-size: 14px;
+  font-family: 'JetBrains Mono', monospace; white-space: nowrap;
+}
+.badge-red { background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #ef4444; }
+.badge-blue { background: rgba(0,217,255,0.1); border: 1px solid #00D9FF; color: #00D9FF; }
+.badge-amber { background: rgba(255,184,0,0.1); border: 1px solid #FFB800; color: #FFB800; }
+.badge-green { background: rgba(34,197,94,0.2); border: 1px solid #22c55e; color: #22c55e; }
+
+.content-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+  flex: 1; min-height: 0;
+}
+.panel {
+  background: rgba(30,30,30,0.8); border: 1px solid #30363d;
+  border-radius: 12px; padding: 24px;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-highlight { border-color: #00D9FF; }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #30363d;
+}
+.panel-title {
+  font-size: 20px; font-weight: 700; color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* stat cards */
+.stat-card {
+  background: rgba(30,30,30,0.8); border: 1px solid #30363d;
+  border-radius: 12px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 16px;
+}
+.stat-icon {
+  width: 48px; height: 48px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.stat-icon-blue { background: rgba(0,217,255,0.1); color: #00D9FF; }
+.stat-icon-amber { background: rgba(255,184,0,0.1); color: #FFB800; }
+.stat-icon-red { background: rgba(239,68,68,0.1); color: #ef4444; }
+.stat-icon-green { background: rgba(34,197,94,0.1); color: #22c55e; }
+.stat-label { font-size: 13px; color: #9ca3af; margin-bottom: 4px; }
+.stat-value {
+  font-size: 26px; font-weight: 700; color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+}
+.v-blue { color: #00D9FF; }
+.v-amber { color: #FFB800; }
+.v-red { color: #ef4444; }
+.v-green { color: #22c55e; }
+
+/* code blocks */
+.code-block {
+  background: #1e1e1e; border: 1px solid #30363d; border-radius: 8px;
+  padding: 14px 16px; font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; color: #e5e7eb; line-height: 1.7;
+}
+.c-comment { color: #6b7280; }
+.c-kw { color: #00D9FF; }
+.c-str { color: #22c55e; }
+.c-num { color: #FFB800; }
+.c-any { color: #ef4444; background: rgba(239,68,68,0.1); padding: 0 2px; border-radius: 2px; }
+.c-unk { color: #FFB800; background: rgba(255,184,0,0.1); padding: 0 2px; border-radius: 2px; }
+
+/* feature / scenario boxes */
+.box {
+  background: rgba(0,0,0,0.3); border: 1px solid #30363d;
+  border-radius: 8px; padding: 16px;
+}
+.box-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.box-desc { font-size: 13px; color: #9ca3af; line-height: 1.6; }
+
+/* stats row */
+.stats-row { display: flex; gap: 16px; margin-top: 12px; }
+.stat-pill {
+  flex: 1; background: rgba(0,0,0,0.2); border-radius: 6px;
+  padding: 12px; text-align: center;
+}
+.stat-pill-label { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
+.stat-pill-value {
+  font-size: 18px; font-weight: 700; color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* status dots */
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-red { background: #ef4444; }
+.dot-green { background: #22c55e; }
+.dot-blue { background: #00D9FF; }
+.dot-amber { background: #FFB800; }
+
+/* glows */
+.glow {
+  position: absolute; border-radius: 50%; filter: blur(40px); pointer-events: none;
+}
+.glow-blue {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(0,217,255,0.1) 0%, transparent 70%);
+}
+.glow-amber {
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(255,184,0,0.1) 0%, transparent 70%);
+}
+
+/* floating code */
+.float-code {
+  position: absolute; opacity: 0.07; pointer-events: none;
+  font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #00D9FF;
+}
+
+/* cursor blink */
+.cursor-blink {
+  display: inline-block; width: 8px; height: 16px; background: #00D9FF;
+  animation: blink 1s infinite;
+}
+@keyframes blink { 0%,50% { opacity:1; } 51%,100% { opacity:0; } }
+
+/* terminal window */
+.terminal {
+  background: #1e1e1e; border: 1px solid #30363d; border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); overflow: hidden;
+}
+.terminal-bar {
+  background: #252526; padding: 10px 16px;
+  display: flex; align-items: center; border-bottom: 1px solid #30363d;
+}
+.terminal-dots { display: flex; gap: 8px; }
+.terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+.td-r { background: #ff5f56; } .td-y { background: #ffbd2e; } .td-g { background: #27c93f; }
+.terminal-label {
+  margin-left: 16px; font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; color: #9ca3af;
+}
+.terminal-body { padding: 24px; font-family: 'JetBrains Mono', monospace; font-size: 14px; line-height: 1.6; color: #e5e7eb; }
+.prompt { color: #00D9FF; }
+.output { color: #9ca3af; margin-left: 24px; }
+
+/* image placeholder */
+.img-placeholder {
+  border: 2px dashed #00D9FF; border-radius: 8px;
+  background: rgba(0,217,255,0.04); padding: 20px;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; aspect-ratio: 16/9; max-height: 200px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  color: #00D9FF; opacity: 0.8;
+}
+
+/* lesson list */
+.lesson-list { list-style: none; padding: 0; }
+.lesson-list li {
+  padding: 12px 0; border-bottom: 1px solid #30363d;
+  font-size: 15px; color: #e5e7eb; line-height: 1.5;
+  display: flex; align-items: flex-start; gap: 12px;
+}
+.lesson-list li:last-child { border-bottom: none; }
+.lesson-list .bullet {
+  color: #00D9FF; font-size: 18px; flex-shrink: 0; margin-top: 1px;
+}
+.lesson-list code {
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  background: rgba(0,217,255,0.1); color: #00D9FF;
+  padding: 2px 6px; border-radius: 4px;
+}
+
+/* big number */
+.big-number {
+  font-family: 'JetBrains Mono', monospace; font-weight: 800;
+  font-size: 64px; line-height: 1;
+}
+
+/* cost comparison */
+.cost-grid { display: flex; gap: 24px; align-items: stretch; }
+.cost-card {
+  flex: 1; background: #0d1117; border: 1px solid #30363d;
+  border-radius: 8px; padding: 20px; position: relative;
+}
+.cost-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #8b949e; margin-bottom: 8px;
+}
+.cost-value {
+  font-family: 'JetBrains Mono', monospace; font-size: 40px; font-weight: 700;
+}
+.cost-sub { font-size: 12px; color: #8b949e; margin-top: 8px; }
+
+/* warning / info boxes */
+.warning-box {
+  background: rgba(239,68,68,0.1); border: 1px solid #ef4444;
+  border-radius: 8px; padding: 12px;
+  font-size: 13px; color: #ef4444; display: flex; align-items: center; gap: 8px;
+}
+.info-box {
+  background: rgba(0,217,255,0.05); border: 1px solid #30363d;
+  border-radius: 8px; padding: 12px;
+  font-size: 13px; color: #9ca3af; display: flex; align-items: center; gap: 8px;
+}
+
+/* wrapper icons grid */
+.wrapper-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.wrapper-card {
+  background: rgba(0,0,0,0.3); border: 1px solid #30363d; border-radius: 8px;
+  padding: 20px; text-align: center;
+}
+.wrapper-card .icon { font-size: 32px; margin-bottom: 8px; color: #00D9FF; }
+.wrapper-card .name { font-size: 14px; font-weight: 600; color: #fff; }
+.wrapper-card .detail { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+
+/* git graph visual */
+.git-graph {
+  display: flex; flex-direction: column; gap: 0; position: relative;
+  padding: 16px 0;
+}
+.git-branch {
+  display: flex; align-items: center; gap: 12px; padding: 8px 0;
+}
+.git-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid;
+}
+.git-line {
+  position: absolute; width: 2px; left: 6px;
+}
+
+/* centered slide layout */
+.slide-centered {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; height: 100%;
+  padding: 40px 60px;
+}
+
+/* title slide specifics */
+.title-main {
+  font-size: clamp(40px, 5vw, 56px); font-weight: 800; color: #fff;
+  letter-spacing: -0.02em; text-shadow: 0 0 40px rgba(0,217,255,0.3);
+}
+.title-accent { color: #00D9FF; }
+.title-sub { font-size: clamp(18px, 2.5vw, 24px); color: #9ca3af; margin-top: 14px; font-weight: 400; }
+.speaker-note {
+  color: #6b7280; font-size: 14px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* slide number */
+.slide-num {
+  position: absolute; top: 16px; right: 20px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #30363d;
+}
+
+/* iceberg */
+.iceberg-surface {
+  background: linear-gradient(180deg, rgba(0,217,255,0.1), rgba(0,217,255,0.05));
+  border: 1px solid #00D9FF; border-radius: 8px;
+  padding: 12px 16px; display: flex; align-items: center; gap: 8px;
+}
+.iceberg-waterline { height: 2px; background: #00D9FF; margin: 0; }
+.iceberg-depth {
+  background: rgba(0,0,0,0.3); border-radius: 0 0 8px 8px; padding: 16px;
+}
+.depth-row {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+}
+.depth-label { color: #9ca3af; min-width: 110px; }
+.depth-val { color: #fff; min-width: 50px; }
+.depth-bar { flex: 1; height: 4px; background: #30363d; border-radius: 2px; }
+.depth-fill { height: 100%; background: linear-gradient(90deg, #00D9FF, #FFB800); border-radius: 2px; }
+
+/* responsive scaling */
+@media (max-width: 1300px) {
+  .slide-inner { padding: 24px 32px; }
+  .content-grid { gap: 20px; }
+}
+
+/* fullscreen hint */
+.fullscreen-hint {
+  position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 100; font-size: 12px; color: #30363d;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.6; transition: opacity 0.5s;
+}
+.fullscreen-hint:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+<!-- ============================== SLIDE 0: TITLE ============================== -->
+<div class="slide active" data-slide="0">
+  <div class="glow glow-blue" style="top:-100px;right:-100px;"></div>
+  <div class="glow glow-amber" style="bottom:-20px;left:-20px;"></div>
+  <div class="float-code" style="top:20%;left:10%;transform:rotate(-15deg)">const migration = async () =&gt; {</div>
+  <div class="float-code" style="top:60%;right:15%;transform:rotate(10deg)">// TODO: Fix TypeScript errors</div>
+  <div class="float-code" style="bottom:20%;left:20%;transform:rotate(-5deg)">return Promise.resolve(success);</div>
+  <div class="slide-num">0 / 14</div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;position:relative;z-index:2;">
+    <div class="terminal" style="width:min(1000px,85vw);">
+      <div class="terminal-bar">
+        <div class="terminal-dots"><div class="terminal-dot td-r"></div><div class="terminal-dot td-y"></div><div class="terminal-dot td-g"></div></div>
+        <div class="terminal-label">~/handsontable-migration &mdash; zsh &mdash; 80x24</div>
+      </div>
+      <div class="terminal-body">
+        <div style="margin-bottom:20px"><span class="prompt">$</span> <span>git status</span></div>
+        <div class="output" style="margin-bottom:14px">
+          On branch feature/typescript-2026<br>
+          Your branch is ahead of 'origin/develop' by 1 commit.<br>
+          Changes to be committed:<br>
+          <span style="color:#22c55e">  (use "git reset HEAD &lt;file&gt;..." to unstage)</span>
+        </div>
+        <div class="output" style="margin-left:32px;margin-bottom:14px">
+          <span style="color:#00D9FF">modified:</span> src/core/Grid.ts<br>
+          <span style="color:#00D9FF">modified:</span> src/plugins/index.ts<br>
+          <span style="color:#00D9FF">modified:</span> package.json<br>
+          <span style="color:#FFB800">deleted:</span>  src/legacy/*.js (30,000 lines)
+        </div>
+        <div style="margin-top:20px"><span class="prompt">$</span> npx tsc --noEmit <span class="cursor-blink"></span></div>
+        <div class="output" style="margin-top:12px">
+          <span style="color:#22c55e">&check;</span> <span style="color:#FFB800">0 errors</span> found in 342,000 lines of code<br>
+          <span style="color:#22c55e">&check;</span> TypeScript compilation successful<br>
+          <span style="color:#22c55e">&check;</span> All 6 framework wrappers migrated<br>
+          <span style="color:#9ca3af">... completed in 1.2s</span>
+        </div>
+        <div style="display:flex;gap:32px;margin-top:20px;padding:14px;background:rgba(0,0,0,0.3);border-radius:8px">
+          <div><div style="font-size:12px;color:#9ca3af;margin-bottom:6px">Lines Changed</div><div style="font-size:22px;font-weight:700;color:#00D9FF;font-family:'JetBrains Mono',monospace">30,000+</div></div>
+          <div><div style="font-size:12px;color:#9ca3af;margin-bottom:6px">Files Modified</div><div style="font-size:22px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace">487</div></div>
+          <div><div style="font-size:12px;color:#9ca3af;margin-bottom:6px">Time Saved</div><div style="font-size:22px;font-weight:700;color:#22c55e;font-family:'JetBrains Mono',monospace">~40 days</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:32px;">
+      <h1 class="title-main"><span class="title-accent">30,000 Lines</span> Overnight</h1>
+      <p class="title-sub">What Happens When You Let AI Rewrite Your Library in TypeScript</p>
+    </div>
+    <div class="speaker-note" style="margin-top:24px">
+      <i class="fas fa-terminal" style="margin-right:8px;color:#00D9FF;"></i>
+      The morning I came to work and found a TypeScript Handsontable
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 1: THE PROBLEM ============================== -->
+<div class="slide" data-slide="1">
+  <div class="slide-inner">
+    <div class="slide-num">1 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">The Problem That Wouldn't Get Solved</div>
+        <div class="slide-subtitle">A JavaScript data grid library born in 2012 &mdash; the same year TypeScript was invented</div>
+      </div>
+      <div class="badge badge-red">STALLED</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-file-code"></i></div>
+          <div><div class="stat-label">Lines of JavaScript</div><div class="stat-value v-blue">342,000</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-book"></i></div>
+          <div><div class="stat-label">Over</div><div class="stat-value">1,000,000 words</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-calendar-alt"></i></div>
+          <div><div class="stat-label">Born</div><div class="stat-value">2012</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-dollar-sign"></i></div>
+          <div><div class="stat-label">Contractor Quote (30 days)</div><div class="stat-value v-red">$25,000</div></div>
+        </div>
+        <div class="img-placeholder">[IMAGE: Erlich explaining why something is impossible]</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#00D9FF">#TS-2024-001</span>
+            <span style="background:rgba(239,68,68,0.2);color:#ef4444;padding:4px 12px;border-radius:12px;font-size:12px">OPEN</span>
+          </div>
+          <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">TypeScript Migration</div>
+          <div style="font-size:14px;color:#9ca3af;line-height:1.6">
+            Migrate the entire Handsontable codebase from JavaScript to TypeScript. This task had been open for years with multiple failed attempts. Always the same verdict: too expensive, too risky, too disruptive.
+          </div>
+          <div style="display:flex;gap:24px;margin-top:16px;padding-top:16px;border-top:1px solid #30363d">
+            <div><span style="font-size:12px;color:#9ca3af">Priority:</span> <span style="font-size:13px;color:#fff;font-family:'JetBrains Mono',monospace">High</span></div>
+            <div><span style="font-size:12px;color:#9ca3af">Est. Cost:</span> <span style="font-size:13px;color:#fff;font-family:'JetBrains Mono',monospace">$25,000</span></div>
+            <div><span style="font-size:12px;color:#9ca3af">Duration:</span> <span style="font-size:13px;color:#fff;font-family:'JetBrains Mono',monospace">30 days</span></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;background:rgba(30,30,30,0.8);border:1px solid #30363d;border-radius:12px;padding:20px">
+          <div style="text-align:center;flex:1">
+            <div class="cost-label">Contractor Quote</div>
+            <div style="font-size:24px;font-weight:700;color:#ef4444;font-family:'JetBrains Mono',monospace;text-decoration:line-through">$25,000</div>
+          </div>
+          <div style="color:#00D9FF;font-size:24px"><i class="fas fa-arrow-right"></i></div>
+          <div style="text-align:center;flex:1">
+            <div class="cost-label">AI Migration Cost</div>
+            <div style="font-size:24px;font-weight:700;color:#22c55e;font-family:'JetBrains Mono',monospace">$1,000</div>
+          </div>
+          <div style="color:#00D9FF;font-size:24px"><i class="fas fa-arrow-right"></i></div>
+          <div style="text-align:center;flex:1">
+            <div class="cost-label">Time Saved</div>
+            <div style="font-size:24px;font-weight:700;color:#fff;font-family:'JetBrains Mono',monospace">~40 days</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 2: TWO TRAINS ============================== -->
+<div class="slide" data-slide="2">
+  <div class="slide-inner">
+    <div class="slide-num">2 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">Two Trains. One Year Apart.</div>
+        <div class="slide-subtitle">Same journey, different outcomes</div>
+      </div>
+      <div class="badge badge-blue">2025 &rarr; 2026</div>
+    </div>
+    <div class="content-grid">
+      <!-- 2025 -->
+      <div class="panel" style="position:relative">
+        <div class="panel-header">
+          <div class="panel-title">2025</div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="dot dot-red"></div><span style="color:#ef4444;font-size:14px">Failed</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+          <div class="box">
+            <div class="box-title"><i class="fas fa-train"></i> On the train to conference</div>
+            <div class="box-desc">Working on TypeScript migration in Cursor with Claude Sonnet 3.7. Cursor crashed constantly, lost context, made same mistakes on loop.</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-pill"><div class="stat-pill-label">TS Errors</div><div class="stat-pill-value v-red">900+</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Man-days</div><div class="stat-pill-value v-red">40+</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:32px;font-weight:700;color:#ef4444;font-family:'JetBrains Mono',monospace">900</span>
+            <span style="font-size:12px;color:#9ca3af">TypeScript errors<br>Concluded: impossible in one go</span>
+          </div>
+          <div class="code-block">
+            <span class="c-comment">// Cursor kept crashing</span><br>
+            <span class="c-kw">const</span> migration = <span class="c-kw">async</span> () =&gt; {<br>
+            &nbsp; <span class="c-kw">return</span> <span class="c-str">"failed"</span>;<br>
+            }
+          </div>
+        </div>
+        <div style="position:absolute;bottom:20px;right:20px;opacity:0.1;font-size:48px;color:#00D9FF"><i class="fas fa-train"></i></div>
+      </div>
+      <!-- 2026 -->
+      <div class="panel" style="position:relative">
+        <div class="panel-header">
+          <div class="panel-title">2026</div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="dot dot-green"></div><span style="color:#22c55e;font-size:14px">Success</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+          <div class="box">
+            <div class="box-title"><i class="fas fa-check-circle"></i> Same train, job done</div>
+            <div class="box-desc">Same train, same conference, same co-passenger. This time the job was already done. 30,000 lines migrated overnight.</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-pill"><div class="stat-pill-label">TS Errors</div><div class="stat-pill-value v-green">0</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Man-days</div><div class="stat-pill-value v-green">1</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:32px;font-weight:700;color:#22c55e;font-family:'JetBrains Mono',monospace">0</span>
+            <span style="font-size:12px;color:#9ca3af">TypeScript errors<br>Clean compilation</span>
+          </div>
+          <div class="code-block">
+            <span class="c-comment">// Migration complete</span><br>
+            <span class="c-kw">const</span> migration = <span class="c-kw">async</span> () =&gt; {<br>
+            &nbsp; <span class="c-kw">return</span> <span class="c-str">"success"</span>;<br>
+            }
+          </div>
+        </div>
+        <div style="position:absolute;bottom:20px;right:20px;opacity:0.1;font-size:48px;color:#22c55e"><i class="fas fa-check-circle"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 3: BEFORE & AFTER LLMs ============================== -->
+<div class="slide" data-slide="3">
+  <div class="slide-inner">
+    <div class="slide-num">3 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">TypeScript: Before and After LLMs</div>
+        <div class="slide-subtitle">The shift from nice-to-have to necessary infrastructure</div>
+      </div>
+      <div class="badge badge-blue">PARADIGM SHIFT</div>
+    </div>
+    <div class="content-grid">
+      <!-- BEFORE -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">BEFORE</div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="dot dot-amber"></div><span style="color:#FFB800;font-size:14px">Nice to have</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+          <div class="box">
+            <div class="box-title"><i class="fas fa-code"></i> Developer Experience</div>
+            <div class="box-desc">Better DX, autocomplete, refactoring safety, self-documenting APIs. Good reasons, but never enough to justify the cost for a stable library.</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-pill"><div class="stat-pill-label">Priority</div><div class="stat-pill-value v-amber">Low</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Impact</div><div class="stat-pill-value v-amber">DX</div></div>
+          </div>
+          <div class="box">
+            <div class="box-title"><i class="fas fa-lightbulb"></i> Why it didn't happen</div>
+            <div class="box-desc">Too expensive, too risky, too disruptive. The math never worked for a stable library.</div>
+          </div>
+          <div class="code-block">
+            <span class="c-comment">// JavaScript &mdash; ambiguity at every boundary</span><br>
+            <span class="c-kw">function</span> process(data) {<br>
+            &nbsp; <span class="c-kw">return</span> data.map(x =&gt; x.value);<br>
+            }
+          </div>
+        </div>
+      </div>
+      <!-- AFTER -->
+      <div class="panel panel-highlight">
+        <div class="panel-header">
+          <div class="panel-title">AFTER</div>
+          <div style="display:flex;align-items:center;gap:8px"><div class="dot dot-blue"></div><span style="color:#00D9FF;font-size:14px">Necessary</span></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+          <div class="box">
+            <div class="box-title"><i class="fas fa-robot"></i> AI Collaboration Requirement</div>
+            <div class="box-desc">LLMs work significantly better with strongly typed codebases. Types are context, constraints, and communication.</div>
+          </div>
+          <div class="stats-row">
+            <div class="stat-pill"><div class="stat-pill-label">Priority</div><div class="stat-pill-value v-blue">Critical</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Impact</div><div class="stat-pill-value v-blue">AI</div></div>
+          </div>
+          <div class="box">
+            <div class="box-title"><i class="fas fa-map"></i> Types as a map</div>
+            <div class="box-desc">Dynamic JS gives AI ambiguity. TypeScript gives it a map. The migration that was "nice to have" quietly became necessary infrastructure.</div>
+          </div>
+          <div class="code-block">
+            <span class="c-comment">// TypeScript &mdash; clear boundaries for AI</span><br>
+            <span class="c-kw">function</span> process(data: <span class="c-kw">DataItem</span>[]): <span class="c-kw">Result</span>[] {<br>
+            &nbsp; <span class="c-kw">return</span> data.map(x =&gt; x.value);<br>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 4: ARCHITECTURE ============================== -->
+<div class="slide" data-slide="4">
+  <div class="slide-inner">
+    <div class="slide-num">4 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">Why the Architecture Actually Helped</div>
+        <div class="slide-subtitle">Good architecture helps humans and AIs for the same reasons</div>
+      </div>
+      <div class="badge badge-blue">ARCHITECTURE</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-microchip"></i></div>
+          <div><div class="stat-label">Architecture</div><div class="stat-value">Microkernel</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-puzzle-piece"></i></div>
+          <div><div class="stat-label">Plugins</div><div class="stat-value v-blue">40+</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-shield-alt"></i></div>
+          <div><div class="stat-label">Custom ESLint Rules</div><div class="stat-value v-amber">Machine-readable arch docs</div></div>
+        </div>
+        <div class="box" style="margin-top:8px">
+          <div class="box-title"><i class="fas fa-ban" style="color:#ef4444"></i> What the linter enforced</div>
+          <div class="box-desc">No raw <code style="font-family:'JetBrains Mono',monospace;color:#00D9FF;background:rgba(0,217,255,0.1);padding:2px 4px;border-radius:3px">window/document/console</code>. No barrel imports. No cross-plugin direct calls. No native <code style="font-family:'JetBrains Mono',monospace;color:#00D9FF;background:rgba(0,217,255,0.1);padding:2px 4px;border-radius:3px">throw new Error()</code>.</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel">
+          <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:16px">Microkernel + Plugin Architecture</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px">
+            <div style="background:rgba(0,217,255,0.15);border:2px solid #00D9FF;border-radius:8px;padding:12px 24px;font-family:'JetBrains Mono',monospace;color:#00D9FF;font-weight:700;font-size:16px">CORE KERNEL</div>
+            <div style="color:#30363d;font-size:20px"><i class="fas fa-arrows-alt-v"></i></div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%">
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">AutoFill</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Filters</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Sort</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Merge</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Undo</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Comments</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">Search</div>
+              <div style="background:rgba(255,184,0,0.1);border:1px solid #FFB800;border-radius:6px;padding:8px;text-align:center;font-size:11px;color:#FFB800;font-family:'JetBrains Mono',monospace">+33 more</div>
+            </div>
+          </div>
+        </div>
+        <div class="box">
+          <div class="box-desc" style="font-size:14px;color:#e5e7eb">
+            Each plugin is a <strong style="color:#00D9FF">bounded context</strong>. The AI could reason about one plugin without holding 342k lines in mind. The linter didn't just catch bad code &mdash; it told the AI how to think about the codebase.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 5: THE YOLO PROMPT ============================== -->
+<div class="slide" data-slide="5">
+  <div class="slide-inner" style="padding:0">
+    <div class="slide-num" style="z-index:20">5 / 14</div>
+    <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(circle at 50% 50%, rgba(0,217,255,0.06) 0%, transparent 70%)"></div>
+    <div class="terminal" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(1100px,90vw);height:min(600px,85vh);z-index:10">
+      <div class="terminal-bar">
+        <div class="terminal-dots"><div class="terminal-dot td-r"></div><div class="terminal-dot td-y"></div><div class="terminal-dot td-g"></div></div>
+        <div class="terminal-label">cursor &mdash; bash &mdash; 80x24</div>
+      </div>
+      <div class="terminal-body" style="height:calc(100% - 40px);overflow:hidden;display:flex;flex-direction:column">
+        <div style="margin-bottom:12px"><span class="prompt">$</span> git checkout -b feature/yolo-typescript-migration</div>
+        <div class="output" style="margin-bottom:12px">Switched to a new branch 'feature/yolo-typescript-migration'</div>
+        <div style="margin-bottom:12px"><span class="prompt">$</span> cursor --mode=yolo --target=./src --prompt="Convert entire codebase to TypeScript"</div>
+        <div class="output" style="margin-bottom:8px">
+          <span style="color:#22c55e">&check;</span> Processing 342,000 lines of JavaScript...<br>
+          <span style="color:#22c55e">&check;</span> Analyzing dependencies and types...<br>
+          <span style="color:#22c55e">&check;</span> Generating TypeScript definitions...<br>
+          <span style="color:#22c55e">&check;</span> Compilation successful with 0 errors
+        </div>
+        <div style="margin-bottom:8px;font-size:13px;color:#9ca3af">Nobody told me to do this. No ticket. No sprint item. No plan. Full YOLO mode.</div>
+        <div class="cost-grid" style="margin-top:8px">
+          <div class="cost-card">
+            <div class="cost-label">CONTRACTOR QUOTE</div>
+            <div class="cost-value v-red" style="font-size:36px">$25,000</div>
+            <div class="cost-sub">30 days, success fee</div>
+            <div style="color:#ef4444;font-size:12px;margin-top:6px">&cross; Too expensive, too risky</div>
+          </div>
+          <div style="display:flex;align-items:center"><span style="color:#00D9FF;font-size:32px">&rarr;</span></div>
+          <div class="cost-card">
+            <div class="cost-label">OVERNIGHT COST</div>
+            <div class="cost-value v-green" style="font-size:36px">$1,000</div>
+            <div class="cost-sub">One night, no planning</div>
+            <div style="color:#22c55e;font-size:12px;margin-top:6px">&check; It compiled!</div>
+          </div>
+          <div style="display:flex;align-items:center"><span style="color:#00D9FF;font-size:32px">&rarr;</span></div>
+          <div class="cost-card">
+            <div class="cost-label">SAVINGS</div>
+            <div class="cost-value v-green" style="font-size:36px">$24,000</div>
+            <div class="cost-sub">96% cost reduction</div>
+            <div style="color:#22c55e;font-size:12px;margin-top:6px">&check; On roadmap now</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:auto;padding:10px;background:#0d1117;border-radius:6px;font-size:13px;flex-wrap:wrap">
+          <div><span style="color:#8b949e">Planned?</span> <strong style="color:#ef4444">NO</strong></div>
+          <div><span style="color:#8b949e">On roadmap now?</span> <strong style="color:#22c55e">YES</strong></div>
+          <div><span style="color:#8b949e">File changes:</span> <strong>+30,000/-28,000</strong></div>
+          <div><span style="color:#8b949e">Spending limit set?</span> <strong style="color:#ef4444">NO</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="img-placeholder" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);max-height:120px;width:220px;z-index:20;font-size:11px">
+      [IMAGE: Silicon Valley shocked at screen moment]
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 6: WHAT "IT COMPILED" MEANT ============================== -->
+<div class="slide" data-slide="6">
+  <div class="slide-inner">
+    <div class="slide-num">6 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">What "It Compiled" Actually Meant</div>
+        <div class="slide-subtitle">AI solved the activation energy problem. Not the whole problem.</div>
+      </div>
+      <div class="badge badge-blue">ANALYSIS</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-green"><i class="fas fa-check-circle"></i></div>
+          <div><div class="stat-label">tsc --noEmit</div><div class="stat-value v-green">0 errors</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-green"><i class="fas fa-ban"></i></div>
+          <div><div class="stat-label">@ts-ignore</div><div class="stat-value v-green">0 comments</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-exclamation-triangle"></i></div>
+          <div><div class="stat-label">any usages</div><div class="stat-value v-amber">~138</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-question-circle"></i></div>
+          <div><div class="stat-label">unknown usages</div><div class="stat-value">~2,088</div></div>
+        </div>
+        <div class="img-placeholder" style="max-height:140px">[IMAGE: Silicon Valley unexpected success reaction]</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel" style="flex:1">
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:16px;font-weight:600;color:#fff">TypeScript Migration Reality</div>
+            <div style="display:flex;gap:16px;font-family:'JetBrains Mono',monospace;font-size:13px">
+              <span><span style="color:#9ca3af">any</span> <strong style="color:#fff">138</strong></span>
+              <span><span style="color:#9ca3af">object</span> <strong style="color:#fff">79</strong></span>
+              <span><span style="color:#9ca3af">as unknown</span> <strong style="color:#fff">194</strong></span>
+            </div>
+          </div>
+          <div class="iceberg-surface">
+            <i class="fas fa-check-circle" style="color:#22c55e"></i>
+            <span style="color:#22c55e;font-family:'JetBrains Mono',monospace">&check; Compilation successful</span>
+          </div>
+          <div class="iceberg-waterline"></div>
+          <div class="iceberg-depth">
+            <div class="depth-row"><div class="depth-label">any usages</div><div class="depth-val">~138</div><div class="depth-bar"><div class="depth-fill" style="width:65%"></div></div></div>
+            <div class="depth-row"><div class="depth-label">object types</div><div class="depth-val">~79</div><div class="depth-bar"><div class="depth-fill" style="width:45%"></div></div></div>
+            <div class="depth-row"><div class="depth-label">as unknown as</div><div class="depth-val">~194</div><div class="depth-bar"><div class="depth-fill" style="width:85%"></div></div></div>
+            <div class="depth-row"><div class="depth-label">unknown</div><div class="depth-val">~2,088</div><div class="depth-bar"><div class="depth-fill" style="width:95%"></div></div></div>
+          </div>
+        </div>
+        <div class="code-block">
+          <span class="c-comment">// AI solved activation energy, not the whole problem</span><br>
+          <span class="c-kw">const</span> migration = {<br>
+          &nbsp; status: <span class="c-str">"compiled"</span>,<br>
+          &nbsp; quality: <span class="c-str">"needs_work"</span>,<br>
+          &nbsp; next: <span class="c-str">"manual_cleanup"</span><br>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 7: DIRTY TRUTH ABOUT ANY ============================== -->
+<div class="slide" data-slide="7">
+  <div class="slide-inner">
+    <div class="slide-num">7 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">The Dirty Truth About <code style="font-family:'JetBrains Mono',monospace;color:#ef4444">any</code></div>
+        <div class="slide-subtitle">AI defaults to escape hatches under ambiguity</div>
+      </div>
+      <div class="badge badge-amber">WARNING</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-exclamation-triangle"></i></div>
+          <div><div class="stat-label">Walkontable <code style="font-family:'JetBrains Mono',monospace;color:#FFB800">any</code></div><div class="stat-value v-amber">87 occurrences</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-code"></i></div>
+          <div><div class="stat-label">Total <code style="font-family:'JetBrains Mono',monospace;color:#ef4444">any</code> in codebase</div><div class="stat-value v-red">~138</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-percentage"></i></div>
+          <div><div class="stat-label">AI coverage</div><div class="stat-value">80%</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-user"></i></div>
+          <div><div class="stat-label">Manual cleanup needed</div><div class="stat-value">20%</div></div>
+        </div>
+        <div class="box">
+          <div class="box-desc" style="font-size:14px;color:#e5e7eb">
+            <code style="font-family:'JetBrains Mono',monospace;color:#FFB800">strict: true</code> is still off. Enabling it is a <strong style="color:#00D9FF">5-phase plan</strong>.<br>
+            AI gives you 80% fast. The last 20% is still yours.
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel" style="flex:1">
+          <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:14px;font-weight:600;color:#fff;display:flex;align-items:center;gap:8px"><i class="fas fa-file-code"></i> Walkontable Module</div>
+            <span style="background:rgba(239,68,68,0.2);color:#ef4444;padding:4px 12px;border-radius:12px;font-size:12px;font-family:'JetBrains Mono',monospace">87 any</span>
+          </div>
+          <div class="code-block" style="flex:1">
+            <span class="c-comment">// AI-generated TypeScript with escape hatches</span><br>
+            <span class="c-kw">export class</span> Walkontable {<br>
+            &nbsp; <span class="c-kw">private</span> _data: <span class="c-any">any</span>[];<br>
+            &nbsp; <span class="c-kw">private</span> _options: <span class="c-any">any</span>;<br><br>
+            &nbsp; <span class="c-kw">constructor</span>(data: <span class="c-any">any</span>[], options: <span class="c-any">any</span>) {<br>
+            &nbsp;&nbsp;&nbsp; <span class="c-kw">this</span>._data = data <span class="c-kw">as</span> <span class="c-any">any</span>;<br>
+            &nbsp;&nbsp;&nbsp; <span class="c-kw">this</span>._options = options <span class="c-kw">as</span> <span class="c-unk">unknown</span>;<br>
+            &nbsp; }<br><br>
+            &nbsp; <span class="c-kw">public</span> getCell(row: <span class="c-num">number</span>, col: <span class="c-num">number</span>): <span class="c-any">any</span> {<br>
+            &nbsp;&nbsp;&nbsp; <span class="c-kw">return this</span>._data[row][col] <span class="c-kw">as</span> <span class="c-any">any</span>;<br>
+            &nbsp; }<br>
+            }
+          </div>
+          <div class="warning-box" style="margin-top:12px">
+            <i class="fas fa-info-circle"></i>
+            <span>Cleanup requires understanding actual types, not just annotating them</span>
+          </div>
+          <div class="stats-row" style="margin-top:12px">
+            <div class="stat-pill"><div class="stat-pill-label">strict: true</div><div class="stat-pill-value">OFF</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Phase</div><div class="stat-pill-value">1/5</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Quality</div><div class="stat-pill-value">80%</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 8: .d.ts FILES LYING ============================== -->
+<div class="slide" data-slide="8">
+  <div class="slide-inner">
+    <div class="slide-num">8 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">When Your <code style="font-family:'JetBrains Mono',monospace;color:#FFB800">.d.ts</code> Files Are Lying</div>
+        <div class="slide-subtitle">A TypeScript migration is also a reckoning with your own past promises</div>
+      </div>
+      <div class="badge badge-red">AUDIT</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-file-alt"></i></div>
+          <div><div class="stat-label">Hand-authored .d.ts files</div><div class="stat-value v-amber">235</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-unlink"></i></div>
+          <div><div class="stat-label">Types vs implementation</div><div class="stat-value v-red">Mismatch</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-search"></i></div>
+          <div><div class="stat-label">Became</div><div class="stat-value">API audit</div></div>
+        </div>
+        <div class="box">
+          <div class="box-desc" style="font-size:14px;color:#e5e7eb">
+            The TypeScript compiler became an <strong style="color:#00D9FF">API audit nobody asked for</strong>. And it found real problems. Types retrofitted over years &mdash; some didn't match the real implementation.
+          </div>
+        </div>
+        <div class="img-placeholder">[IMAGE: Silicon Valley denial/discovery moment]</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel" style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+            <i class="fas fa-file-code"></i> The Broken Contract
+          </div>
+          <div class="code-block" style="flex:1">
+            <span class="c-comment">// What the .d.ts file promised</span><br>
+            <span class="c-kw">interface</span> GridSettings {<br>
+            &nbsp; data: <span class="c-kw">CellValue</span>[][];<br>
+            &nbsp; columns?: <span class="c-kw">ColumnSettings</span>[];<br>
+            &nbsp; readOnly?: <span class="c-kw">boolean</span>;<br>
+            }<br><br>
+            <span class="c-comment">// What the implementation actually did</span><br>
+            <span class="c-kw">function</span> loadData(data) {<br>
+            &nbsp; <span class="c-comment">// Accepts objects, arrays, functions...</span><br>
+            &nbsp; <span class="c-comment">// Returns different types based on context</span><br>
+            &nbsp; <span class="c-comment">// Has 3 undocumented optional params</span><br>
+            &nbsp; <span class="c-kw">if</span> (<span class="c-kw">typeof</span> data === <span class="c-str">"function"</span>) {<br>
+            &nbsp;&nbsp;&nbsp; <span class="c-kw">return</span> data.call(<span class="c-kw">this</span>, settings);<br>
+            &nbsp; }<br>
+            }
+          </div>
+          <div class="warning-box" style="margin-top:12px">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>235 .d.ts files &mdash; types retrofitted over years. Some didn't match the real implementation at all.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 9: THE PR ============================== -->
+<div class="slide" data-slide="9">
+  <div class="slide-inner">
+    <div class="slide-num">9 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">The PR That Reveals the Scale of Done</div>
+        <div class="slide-subtitle">The scope of "done" expands once you start looking</div>
+      </div>
+      <div class="badge badge-blue">PR #12011</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-code-branch"></i></div>
+          <div><div class="stat-label">Branch</div><div class="stat-value" style="font-size:18px">feature/typescript-2026</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-blue"><i class="fas fa-code-commit"></i></div>
+          <div><div class="stat-label">Commits</div><div class="stat-value v-blue">23</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-cube"></i></div>
+          <div><div class="stat-label">Framework wrappers affected</div><div class="stat-value v-amber">6</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-vial"></i></div>
+          <div><div class="stat-label">Test files still in JS</div><div class="stat-value">~970</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-not-equal"></i></div>
+          <div><div class="stat-label">Spec files differ from develop</div><div class="stat-value v-red">34</div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel" style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <i class="fas fa-code-branch"></i> PR #12011 &mdash; February 2026
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+            <div class="box">
+              <div class="box-title"><i class="fas fa-cube" style="color:#FFB800"></i> All 6 Framework Wrappers</div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px">
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">React</div>
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">Angular</div>
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">Vue</div>
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">Vue3</div>
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">React-wrap</div>
+                <div style="background:rgba(0,217,255,0.1);border:1px solid #30363d;border-radius:6px;padding:8px;text-align:center;font-size:12px;color:#00D9FF;font-family:'JetBrains Mono',monospace">Angular-wrap</div>
+              </div>
+            </div>
+            <div class="warning-box">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>The PR is open. Cannot be merged. It's a breaking change.</span>
+            </div>
+            <div class="code-block">
+              <span class="c-comment">// The reality of "done"</span><br>
+              <span class="c-kw">const</span> pr = {<br>
+              &nbsp; number: <span class="c-num">12011</span>,<br>
+              &nbsp; status: <span class="c-str">"open"</span>,<br>
+              &nbsp; mergeable: <span class="c-any">false</span>,<br>
+              &nbsp; reason: <span class="c-str">"breaking_change"</span><br>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 10: E2E TESTS ============================== -->
+<div class="slide" data-slide="10">
+  <div class="slide-inner">
+    <div class="slide-num">10 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">E2E Tests as the Only Source of Truth</div>
+        <div class="slide-subtitle">Without a strong test suite you cannot trust an AI-generated migration</div>
+      </div>
+      <div class="badge badge-green">CONTRACT</div>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center">
+      <div style="max-width:900px;width:100%;display:flex;flex-direction:column;gap:24px">
+        <div style="text-align:center;margin-bottom:8px">
+          <i class="fas fa-shield-alt" style="font-size:48px;color:#22c55e;margin-bottom:16px;display:block"></i>
+          <div style="font-size:20px;color:#fff;font-weight:600">Rule: all e2e tests must pass. Zero changes to test code allowed.</div>
+          <div style="font-size:15px;color:#9ca3af;margin-top:8px">This constraint was the most important decision of the whole migration.</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+          <div class="panel" style="text-align:center;padding:24px">
+            <i class="fas fa-check-double" style="font-size:32px;color:#22c55e;margin-bottom:12px"></i>
+            <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">All E2E Tests Pass</div>
+            <div style="font-size:13px;color:#9ca3af">No changes to test code. The tests prove the migration preserved behavior.</div>
+          </div>
+          <div class="panel" style="text-align:center;padding:24px">
+            <i class="fas fa-ban" style="font-size:32px;color:#ef4444;margin-bottom:12px"></i>
+            <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">Zero Test Modifications</div>
+            <div style="font-size:13px;color:#9ca3af">If the tests need changing, the migration is wrong &mdash; not the tests.</div>
+          </div>
+          <div class="panel" style="text-align:center;padding:24px">
+            <i class="fas fa-file-contract" style="font-size:32px;color:#00D9FF;margin-bottom:12px"></i>
+            <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">The Tests Are the Contract</div>
+            <div style="font-size:13px;color:#9ca3af">They define what the library does. Everything else is implementation detail.</div>
+          </div>
+        </div>
+        <div class="code-block" style="text-align:center;font-size:16px;padding:20px">
+          <span class="c-comment">// The one rule that made everything possible</span><br>
+          <span class="c-kw">assert</span>(e2eTests.allPassing() === <span class="c-str">true</span>);<br>
+          <span class="c-kw">assert</span>(e2eTests.modified() === <span class="c-num">0</span>);
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 11: FRAMEWORK WRAPPERS ============================== -->
+<div class="slide" data-slide="11">
+  <div class="slide-inner">
+    <div class="slide-num">11 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">The Hidden Cost: Framework Wrappers</div>
+        <div class="slide-subtitle">The library is not the whole system. Plan for the ecosystem.</div>
+      </div>
+      <div class="badge badge-amber">ECOSYSTEM</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:24px;justify-content:center">
+      <div class="wrapper-grid">
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-react"></i></div>
+          <div class="name">React</div>
+          <div class="detail">Interface mismatches found</div>
+        </div>
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-angular"></i></div>
+          <div class="name">Angular</div>
+          <div class="detail">Interface mismatches found</div>
+        </div>
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-vuejs"></i></div>
+          <div class="name">Vue</div>
+          <div class="detail">Interface mismatches found</div>
+        </div>
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-vuejs"></i></div>
+          <div class="name">Vue3</div>
+          <div class="detail">Interface mismatches found</div>
+        </div>
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-react"></i></div>
+          <div class="name">React Wrapper</div>
+          <div class="detail">Human review needed</div>
+        </div>
+        <div class="wrapper-card">
+          <div class="icon"><i class="fab fa-angular"></i></div>
+          <div class="name">Angular Wrapper</div>
+          <div class="detail">Human review needed</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+        <div class="warning-box" style="font-size:14px">
+          <i class="fas fa-wrench"></i>
+          <span>TypeScript strictness exposed interface mismatches in all wrappers. Not automated. Each needed human review.</span>
+        </div>
+        <div class="info-box">
+          <i class="fas fa-lightbulb" style="color:#FFB800"></i>
+          <span style="color:#e5e7eb">The library is not the whole system. Plan for the ecosystem &mdash; every wrapper is a surface you need to check.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 12: MERGE PROBLEM ============================== -->
+<div class="slide" data-slide="12">
+  <div class="slide-inner">
+    <div class="slide-num">12 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">The Merge Problem Nobody Warned You About</div>
+        <div class="slide-subtitle">Timing and branching strategy matter as much as the migration itself</div>
+      </div>
+      <div class="badge badge-red">CONFLICT</div>
+    </div>
+    <div class="content-grid">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="panel" style="flex:1">
+          <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:16px">Git Timeline</div>
+          <div style="display:flex;flex-direction:column;gap:0;position:relative;padding-left:24px">
+            <div style="position:absolute;left:6px;top:12px;bottom:12px;width:2px;background:#22c55e"></div>
+            <div style="position:absolute;left:6px;top:50%;bottom:12px;width:2px;background:#00D9FF;transform:translateX(20px)"></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;position:relative">
+              <div style="width:14px;height:14px;border-radius:50%;background:#22c55e;position:absolute;left:-24px;border:2px solid #0d1117"></div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#22c55e;font-family:'JetBrains Mono',monospace">develop</div>
+                <div style="font-size:12px;color:#9ca3af">Active development continues...</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;position:relative">
+              <div style="width:14px;height:14px;border-radius:50%;background:#00D9FF;position:absolute;left:-4px;border:2px solid #0d1117"></div>
+              <div style="margin-left:20px">
+                <div style="font-size:13px;font-weight:600;color:#00D9FF;font-family:'JetBrains Mono',monospace">feature/typescript-2026</div>
+                <div style="font-size:12px;color:#9ca3af">TypeScript migration branch</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;position:relative">
+              <div style="width:14px;height:14px;border-radius:50%;background:#22c55e;position:absolute;left:-24px;border:2px solid #0d1117"></div>
+              <div>
+                <div style="font-size:12px;color:#9ca3af">commit &bull; commit &bull; commit &bull; commit</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;position:relative">
+              <div style="width:14px;height:14px;border-radius:50%;background:#ef4444;position:absolute;left:-14px;border:2px solid #0d1117"></div>
+              <div style="margin-left:10px">
+                <div style="font-size:13px;font-weight:600;color:#ef4444;font-family:'JetBrains Mono',monospace">CONFLICT</div>
+                <div style="font-size:12px;color:#9ca3af">Branches diverge further every day</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-code-branch"></i></div>
+          <div><div class="stat-label">Branch status</div><div class="stat-value v-red">Cannot merge</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon-amber"><i class="fas fa-exclamation-circle"></i></div>
+          <div><div class="stat-label">Reason</div><div class="stat-value v-amber">Breaking change</div></div>
+        </div>
+        <div class="box">
+          <div class="box-title"><i class="fas fa-clock" style="color:#ef4444"></i> The Ticking Clock</div>
+          <div class="box-desc">
+            Development continued on <code style="font-family:'JetBrains Mono',monospace;color:#22c55e">develop</code> during the entire migration. Every commit to develop is a potential conflict with the TS branch. The branch still cannot be merged. It's a breaking change.
+          </div>
+        </div>
+        <div class="code-block">
+          <span class="c-comment">// Every day the gap grows</span><br>
+          <span class="c-kw">const</span> divergence = {<br>
+          &nbsp; develop: <span class="c-str">"moving forward"</span>,<br>
+          &nbsp; typescript: <span class="c-str">"waiting to merge"</span>,<br>
+          &nbsp; conflicts: <span class="c-str">"accumulating"</span><br>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 13: LESSONS LEARNED ============================== -->
+<div class="slide" data-slide="13">
+  <div class="slide-inner">
+    <div class="slide-num">13 / 14</div>
+    <div class="slide-header">
+      <div>
+        <div class="slide-title">Lessons Learned</div>
+        <div class="slide-subtitle">What I'd tell myself before doing this again</div>
+      </div>
+      <div class="badge badge-blue">TAKEAWAYS</div>
+    </div>
+    <div style="flex:1;display:flex;gap:32px;align-items:flex-start">
+      <div style="flex:1">
+        <ul class="lesson-list">
+          <li><span class="bullet">&rsaquo;</span> AI removes activation energy, not effort</li>
+          <li><span class="bullet">&rsaquo;</span> Set a spending limit before you go to bed</li>
+          <li><span class="bullet">&rsaquo;</span> TypeScript is no longer just about DX &mdash; it's about AI readability</li>
+          <li><span class="bullet">&rsaquo;</span> Microkernel + plugins: good for humans, great for AI agents</li>
+          <li><span class="bullet">&rsaquo;</span> Custom linter rules are architecture docs &mdash; write them for the AI too</li>
+          <li><span class="bullet">&rsaquo;</span> Let your e2e suite be the contract</li>
+          <li><span class="bullet">&rsaquo;</span> <code>any</code> is technical debt with a friendly face</li>
+          <li><span class="bullet">&rsaquo;</span> <code>.d.ts</code> files are promises you may have quietly broken</li>
+          <li><span class="bullet">&rsaquo;</span> A migration branch vs an active codebase is a ticking clock</li>
+          <li><span class="bullet">&rsaquo;</span> Sometimes the most important bets are the ones you almost didn't make</li>
+        </ul>
+      </div>
+      <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:16px">
+        <div class="img-placeholder" style="max-height:160px">[IMAGE: Richard Hendricks exhausted but done]</div>
+        <div class="code-block" style="font-size:12px;text-align:center">
+          <span class="c-comment">// The real lesson</span><br>
+          <span class="c-kw">const</span> courage = <span class="c-str">"yolo"</span>;<br>
+          <span class="c-kw">const</span> wisdom = <span class="c-str">"e2e tests"</span>;
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 14: WHAT'S NEXT + Q&A ============================== -->
+<div class="slide" data-slide="14">
+  <div class="glow glow-blue" style="top:-100px;left:50%;transform:translateX(-50%)"></div>
+  <div class="glow glow-amber" style="bottom:-50px;right:-50px"></div>
+  <div class="slide-num">14 / 14</div>
+  <div class="slide-centered">
+    <div style="margin-bottom:40px">
+      <i class="fas fa-terminal" style="font-size:48px;color:#00D9FF;margin-bottom:24px;display:block"></i>
+      <h2 style="font-size:clamp(32px,4vw,48px);font-weight:800;color:#fff;margin-bottom:16px">What's Next + Q&A</h2>
+      <div style="font-size:18px;color:#9ca3af;max-width:700px;line-height:1.6">
+        Branch exists. Compiles clean. Waiting for the right release window.<br>
+        A library born before TypeScript is about to ship it natively. <strong style="color:#00D9FF">Full circle.</strong>
+      </div>
+    </div>
+    <div style="display:flex;gap:32px;margin-bottom:32px">
+      <div class="panel" style="padding:20px 28px;text-align:center">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#9ca3af;margin-bottom:4px">Same train</div>
+        <div style="font-size:18px;font-weight:700;color:#fff">Same conference</div>
+        <div style="font-size:14px;color:#00D9FF;margin-top:4px">One year apart</div>
+      </div>
+      <div class="panel" style="padding:20px 28px;text-align:center">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#9ca3af;margin-bottom:4px">Different world</div>
+        <div style="font-size:18px;font-weight:700;color:#00D9FF">TypeScript &check;</div>
+      </div>
+    </div>
+    <div style="background:rgba(0,217,255,0.05);border:1px dashed #00D9FF;border-radius:12px;padding:20px 32px;margin-bottom:24px">
+      <div style="font-size:16px;color:#00D9FF;font-weight:600;margin-bottom:4px">Question for the room:</div>
+      <div style="font-size:18px;color:#fff">How do you ship a breaking change responsibly?</div>
+    </div>
+    <div class="speaker-note" style="margin-top:16px">
+      <i class="fas fa-terminal" style="margin-right:8px;color:#00D9FF;"></i>
+      Thank you! &mdash; Questions?
+    </div>
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- NAV BUTTONS -->
+<button class="nav-btn prev" id="prevBtn" aria-label="Previous slide"><i class="fas fa-chevron-left"></i></button>
+<button class="nav-btn next" id="nextBtn" aria-label="Next slide"><i class="fas fa-chevron-right"></i></button>
+
+<!-- COUNTER -->
+<div class="slide-counter" id="counter">1 / 15</div>
+
+<!-- PROGRESS -->
+<div class="progress-bar-global"><div class="fill" id="progress"></div></div>
+
+<!-- FULLSCREEN HINT -->
+<div class="fullscreen-hint">Press <strong>F</strong> for fullscreen &bull; Arrow keys to navigate</div>
+
+<script>
+(function() {
+  const slides = document.querySelectorAll('.slide');
+  const total = slides.length;
+  let current = 0;
+
+  const counter = document.getElementById('counter');
+  const progress = document.getElementById('progress');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  function go(n) {
+    if (n < 0 || n >= total) return;
+    slides[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    counter.textContent = (current + 1) + ' / ' + total;
+    progress.style.width = ((current / (total - 1)) * 100) + '%';
+    prevBtn.style.opacity = current === 0 ? '0.3' : '1';
+    nextBtn.style.opacity = current === total - 1 ? '0.3' : '1';
+  }
+
+  function next() { go(current + 1); }
+  function prev() { go(current - 1); }
+
+  // Keyboard
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+    else if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});
+      else document.exitFullscreen();
+    }
+    else if (e.key === 'Escape' && document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  });
+
+  // Buttons
+  prevBtn.addEventListener('click', prev);
+  nextBtn.addEventListener('click', next);
+
+  // Touch / swipe
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].screenX - touchStartX;
+    const dy = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) next(); else prev();
+    }
+  }, { passive: true });
+
+  // Init
+  go(0);
+})();
+</script>
+</body>
+</html>

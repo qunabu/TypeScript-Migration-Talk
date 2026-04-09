@@ -1,0 +1,10 @@
+{
+  "name": "meetup-ts-presentation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "30,000 Lines Overnight — TypeScript Migration Talk",
+  "scripts": {
+    "start": "npx serve -l 3000 .",
+    "dev": "npx serve -l 3000 ."
+  }
+}
