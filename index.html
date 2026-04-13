@@ -224,18 +224,24 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
 }
 
 /* lesson list */
-.lesson-list { list-style: none; padding: 0; }
+.lesson-list { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lesson-list li {
-  padding: 12px 0; border-bottom: 1px solid #30363d;
-  font-size: 15px; color: #e5e7eb; line-height: 1.5;
-  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 20px; border-radius: 8px;
+  background: rgba(30,30,30,0.6); border: 1px solid #30363d;
+  font-size: 18px; color: #e5e7eb; line-height: 1.4;
+  display: flex; align-items: center; gap: 14px;
+  transition: background 0.3s, border-color 0.3s;
 }
-.lesson-list li:last-child { border-bottom: none; }
+.lesson-list li.revealed {
+  background: rgba(30,30,30,0.9); border-color: #00D9FF;
+}
 .lesson-list .bullet {
-  color: #00D9FF; font-size: 18px; flex-shrink: 0; margin-top: 1px;
+  color: #00D9FF; font-size: 20px; flex-shrink: 0;
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,217,255,0.1); border-radius: 6px;
 }
 .lesson-list code {
-  font-family: 'JetBrains Mono', monospace; font-size: 13px;
+  font-family: 'JetBrains Mono', monospace; font-size: 15px;
   background: rgba(0,217,255,0.1); color: #00D9FF;
   padding: 2px 6px; border-radius: 4px;
 }
@@ -374,6 +380,35 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
   transform: translateY(0);
   pointer-events: auto;
 }
+
+/* stamp overlay */
+.stamp-overlay {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20; pointer-events: none;
+}
+.stamp-deprecated {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(28px, 4vw, 44px); font-weight: 800;
+  color: #ef4444; text-transform: uppercase;
+  border: 4px solid #ef4444; border-radius: 12px;
+  padding: 12px 32px;
+  background: rgba(13,17,23,0.9);
+  box-shadow: 0 0 40px rgba(239,68,68,0.3);
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.deprecated-card.dimmed {
+  opacity: 0.25 !important; filter: grayscale(1);
+  transition: opacity 0.4s, filter 0.4s;
+}
+.kept-card.highlighted {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 20px rgba(34,197,94,0.2);
+  transition: border-color 0.4s, box-shadow 0.4s;
+}
+.kept-card.highlighted .icon { color: #22c55e !important; }
+.kept-card.highlighted .detail { color: #22c55e !important; }
 
 /* video half slides */
 .video-slide {
@@ -616,11 +651,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
             <span style="font-size:11px;color:#6b7280">2025 &mdash; Colleague</span>
           </div>
           <div style="font-size:14px;font-weight:600;color:#fff;margin-bottom:6px">Systematic POC</div>
-          <div style="font-size:12px;color:#9ca3af;line-height:1.5;margin-bottom:10px">
-            Took <strong style="color:#ef4444;font-family:'JetBrains Mono',monospace">30</strong> man-days. Got <strong style="color:#ef4444;font-family:'JetBrains Mono',monospace">900</strong> TS errors. Then created a detailed report.
+          <div style="font-size:11px;color:#9ca3af;line-height:1.4;margin-bottom:6px">
+            Tools: <span style="color:#00D9FF;font-family:'JetBrains Mono',monospace;font-size:10px">Cursor (agent mode)</span>, <span style="color:#00D9FF;font-family:'JetBrains Mono',monospace;font-size:10px">Aider</span>, <span style="color:#00D9FF;font-family:'JetBrains Mono',monospace;font-size:10px">Cline</span>
+          </div>
+          <div style="font-size:11px;color:#9ca3af;line-height:1.4;margin-bottom:6px">
+            Got <strong style="color:#ef4444;font-family:'JetBrains Mono',monospace">900</strong> TS errors. Estimated <strong style="color:#ef4444;font-family:'JetBrains Mono',monospace">40+</strong> man-days for full migration (splittable across team).
+          </div>
+          <div style="font-size:10px;color:#6b7280;line-height:1.4;margin-bottom:8px">
+            Based on converting a 5.54&times; smaller project &mdash; without running type-checker or fixing errors. Likely longer in practice.
           </div>
           <div class="stats-row" style="margin-top:auto">
-            <div class="stat-pill"><div class="stat-pill-label">Spent</div><div class="stat-pill-value v-red" style="font-size:14px">30 days</div></div>
+            <div class="stat-pill"><div class="stat-pill-label">Estimate</div><div class="stat-pill-value v-red" style="font-size:14px">40+ days</div></div>
             <div class="stat-pill"><div class="stat-pill-label">Errors</div><div class="stat-pill-value v-red" style="font-size:14px">900+</div></div>
           </div>
           <div style="font-size:11px;color:#00D9FF;margin-top:8px;display:flex;align-items:center;gap:5px">
@@ -813,13 +854,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
         <div class="box" style="border-color:#00D9FF">
           <div class="box-title"><i class="fas fa-rocket" style="color:#00D9FF"></i> Full YOLO mode</div>
           <div class="box-desc" style="font-size:14px;color:#e5e7eb;line-height:1.7">
-            One prompt. No strategy. No file-by-file discipline. Pointed it at the whole codebase. Left the machine on. Went home.
+            One prompt. No strategy. No file-by-file discipline. Pointed it at the whole codebase. Left the machine on. Went home. <span style="color:#6b7280;font-size:12px">(I don't even remember the exact prompt &mdash; it wasn't saved in my Cursor.)</span>
           </div>
         </div>
         <div class="box" style="border-color:#22c55e">
           <div class="box-title"><i class="fas fa-sun" style="color:#22c55e"></i> The next morning</div>
           <div class="box-desc" style="font-size:14px;color:#e5e7eb;line-height:1.7">
-            Came back expecting a mess. Found something that <strong style="color:#22c55e">compiled</strong>. Then checked the Cursor billing. No spending limit was set.
+            Came back expecting a mess. Found something that <strong style="color:#22c55e">compiled</strong>. Spent a few more hours polishing it in Cursor. Then checked the billing. No spending limit was set. The ~$1,000 was the YOLO prompt + the polishing session combined.
           </div>
         </div>
       </div>
@@ -867,12 +908,30 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
           <strong style="color:#FFB800;font-family:'JetBrains Mono',monospace;font-size:18px">~$1,000</strong> instead of <span style="color:#ef4444;text-decoration:line-through;font-family:'JetBrains Mono',monospace">$25,000</span>.<br>
           One night instead of 30 days.
         </div>
-        <div style="font-size:15px;color:#e5e7eb;line-height:1.7">
-          Was it planned? <strong style="color:#ef4444;font-size:18px">No.</strong><br>
-          Is it on the roadmap now? <strong style="color:#22c55e;font-size:18px">YES.</strong>
-        </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 2f2: WAS IT PLANNED? ============================== -->
+<div class="slide" data-slide="2f2" data-logical="2">
+  <div class="glow glow-blue" style="top:-100px;right:-100px"></div>
+  <div class="glow glow-amber" style="bottom:-60px;left:-60px"></div>
+  <div class="slide-num">2f2</div>
+  <div class="slide-centered">
+    <div style="font-size:clamp(24px,3vw,32px);color:#9ca3af;font-family:'JetBrains Mono',monospace;margin-bottom:24px">Was it planned?</div>
+    <div style="font-size:clamp(80px,12vw,140px);font-weight:800;color:#ef4444;font-family:'JetBrains Mono',monospace;line-height:1;text-shadow:0 0 60px rgba(239,68,68,0.3)">No.</div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 2f3: IS IT ON THE ROADMAP? ============================== -->
+<div class="slide" data-slide="2f3" data-logical="2">
+  <div class="glow glow-blue" style="top:-100px;left:50%;transform:translateX(-50%)"></div>
+  <div class="glow glow-amber" style="bottom:-60px;right:-60px"></div>
+  <div class="slide-num">2f3</div>
+  <div class="slide-centered">
+    <div style="font-size:clamp(24px,3vw,32px);color:#9ca3af;font-family:'JetBrains Mono',monospace;margin-bottom:24px">Is it on the roadmap now?</div>
+    <div style="font-size:clamp(80px,12vw,140px);font-weight:800;color:#22c55e;font-family:'JetBrains Mono',monospace;line-height:1;text-shadow:0 0 60px rgba(34,197,94,0.3)">YES.</div>
   </div>
 </div>
 
@@ -928,6 +987,18 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
       </div>
     </div>
   </div>
+</div>
+
+<!-- ============================== SLIDE 2h: MIND BLOWN ============================== -->
+<div class="slide" data-slide="2h" data-logical="2" style="background:#0d1117">
+  <div class="slide-num">2h</div>
+  <img src="mind.webp" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
+</div>
+
+<!-- ============================== SLIDE 2i: GIPHY REACTION ============================== -->
+<div class="slide" data-slide="2i" data-logical="2" style="background:#0d1117">
+  <div class="slide-num">2i</div>
+  <img src="giphy.webp" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;">
 </div>
 
 <!-- ============================== SLIDE 3: BEFORE & AFTER LLMs ============================== -->
@@ -1336,7 +1407,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
     <div class="slide-num">10 / 14</div>
     <div class="slide-header">
       <div>
-        <div class="slide-title">E2E Tests as the Only Source of Truth</div>
+        <div class="slide-title">E2E Tests as the Source of Truth</div>
         <div class="slide-subtitle">Without a strong test suite you cannot trust an AI-generated migration</div>
       </div>
       <div class="badge badge-green">CONTRACT</div>
@@ -1376,8 +1447,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
 </div>
 
 <!-- ============================== SLIDE 11: FRAMEWORK WRAPPERS ============================== -->
-<div class="slide" data-slide="11">
-  <div class="slide-inner">
+<div class="slide" data-slide="11" data-steps="1">
+  <div class="slide-inner" style="position:relative">
     <div class="slide-num">11 / 14</div>
     <div class="slide-header">
       <div>
@@ -1387,33 +1458,42 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
       <div class="badge badge-amber">ECOSYSTEM</div>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;gap:24px;justify-content:center">
-      <div class="wrapper-grid">
-        <div class="wrapper-card">
-          <div class="icon"><i class="fab fa-react"></i></div>
-          <div class="name">React</div>
-          <div class="detail">Interface mismatches found</div>
+      <!-- Deprecated row -->
+      <div style="position:relative">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+          <div class="wrapper-card deprecated-card">
+            <div class="icon"><i class="fab fa-react"></i></div>
+            <div class="name">React</div>
+            <div class="detail">Interface mismatches found</div>
+          </div>
+          <div class="wrapper-card deprecated-card">
+            <div class="icon"><i class="fab fa-angular"></i></div>
+            <div class="name">Angular</div>
+            <div class="detail">Interface mismatches found</div>
+          </div>
+          <div class="wrapper-card deprecated-card">
+            <div class="icon"><i class="fab fa-vuejs"></i></div>
+            <div class="name">Vue</div>
+            <div class="detail">Interface mismatches found</div>
+          </div>
         </div>
-        <div class="wrapper-card">
-          <div class="icon"><i class="fab fa-angular"></i></div>
-          <div class="name">Angular</div>
-          <div class="detail">Interface mismatches found</div>
+        <div class="step-card stamp-overlay" data-step="1">
+          <div class="stamp-deprecated">DEPRECATED &amp; REMOVED</div>
         </div>
-        <div class="wrapper-card">
-          <div class="icon"><i class="fab fa-vuejs"></i></div>
-          <div class="name">Vue</div>
-          <div class="detail">Interface mismatches found</div>
-        </div>
-        <div class="wrapper-card">
+      </div>
+      <!-- Kept row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div class="wrapper-card kept-card">
           <div class="icon"><i class="fab fa-vuejs"></i></div>
           <div class="name">Vue3</div>
           <div class="detail">Interface mismatches found</div>
         </div>
-        <div class="wrapper-card">
+        <div class="wrapper-card kept-card">
           <div class="icon"><i class="fab fa-react"></i></div>
           <div class="name">React Wrapper</div>
           <div class="detail">Human review needed</div>
         </div>
-        <div class="wrapper-card">
+        <div class="wrapper-card kept-card">
           <div class="icon"><i class="fab fa-angular"></i></div>
           <div class="name">Angular Wrapper</div>
           <div class="detail">Human review needed</div>
@@ -1509,8 +1589,74 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
   </div>
 </div>
 
+<!-- ============================== SLIDE 12b: IP & LEGAL QUESTION ============================== -->
+<div class="slide" data-slide="12b">
+  <div class="glow glow-amber" style="top:-80px;right:-80px"></div>
+  <div class="slide-num">12b</div>
+  <div class="slide-centered">
+    <div style="margin-bottom:32px">
+      <i class="fas fa-gavel" style="font-size:48px;color:#FFB800;margin-bottom:24px;display:block"></i>
+      <div style="font-size:clamp(28px,3.5vw,42px);font-weight:800;color:#fff;line-height:1.3;max-width:800px">
+        Can this code be merged, sold, and shipped with IP?
+      </div>
+    </div>
+    <div style="display:flex;gap:24px;margin-bottom:32px;max-width:800px">
+      <div class="panel" style="flex:1;padding:24px;text-align:center">
+        <i class="fas fa-code-branch" style="font-size:28px;color:#FFB800;margin-bottom:12px"></i>
+        <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">Can it be merged?</div>
+        <div style="font-size:13px;color:#9ca3af;line-height:1.5">AI-generated code in a commercial product. Who owns the output? What are the license implications?</div>
+      </div>
+      <div class="panel" style="flex:1;padding:24px;text-align:center">
+        <i class="fas fa-balance-scale" style="font-size:28px;color:#FFB800;margin-bottom:12px"></i>
+        <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">Can it be sold?</div>
+        <div style="font-size:13px;color:#9ca3af;line-height:1.5">Handsontable is a commercial library. Customers pay for it. Can AI-written code be part of a paid product?</div>
+      </div>
+      <div class="panel" style="flex:1;padding:24px;text-align:center">
+        <i class="fas fa-shield-alt" style="font-size:28px;color:#FFB800;margin-bottom:12px"></i>
+        <div style="font-size:16px;font-weight:600;color:#fff;margin-bottom:8px">IP ownership?</div>
+        <div style="font-size:13px;color:#9ca3af;line-height:1.5">Does the AI provider have any claim? Is the output copyrightable? What do the ToS say?</div>
+      </div>
+    </div>
+    <div style="background:rgba(255,184,0,0.05);border:1px dashed #FFB800;border-radius:12px;padding:20px 32px;max-width:800px">
+      <div style="font-size:15px;color:#FFB800;font-weight:600;margin-bottom:4px"><i class="fas fa-exclamation-triangle" style="margin-right:8px"></i>Open question for the industry</div>
+      <div style="font-size:14px;color:#9ca3af">The legal framework for AI-generated code in commercial products is still evolving. This is a conversation every team shipping AI-assisted code needs to have.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SLIDE 12c: LAWYERS ANSWERED ============================== -->
+<div class="slide" data-slide="12c">
+  <div class="glow glow-blue" style="top:-80px;left:-80px"></div>
+  <div class="slide-num">12c</div>
+  <div style="display:flex;align-items:center;justify-content:center;height:100%;padding:40px 60px;gap:48px">
+    <img src="saul.avif" alt="Saul Goodman" style="height:min(60vh,460px);border-radius:12px;object-fit:cover;border:1px solid #30363d;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+    <div style="max-width:480px;display:flex;flex-direction:column;gap:24px">
+      <div style="font-size:16px;color:#22c55e;font-family:'JetBrains Mono',monospace"><i class="fas fa-check-circle" style="margin-right:8px"></i>We asked. They answered.</div>
+      <div style="font-size:16px;color:#9ca3af;margin-bottom:-8px">Our lawyers said:</div>
+      <div style="font-size:clamp(52px,7vw,80px);font-weight:800;color:#22c55e;line-height:1;text-shadow:0 0 60px rgba(34,197,94,0.3)">It's fine.</div>
+      <div style="font-size:15px;color:#9ca3af;line-height:1.7">
+        We consulted our legal team about merging AI-generated code into a commercial product sold with IP protection. The answers came back clear.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+          <span style="color:#22c55e"><i class="fas fa-check"></i></span>
+          <span style="color:#e5e7eb">Can be merged into the codebase</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+          <span style="color:#22c55e"><i class="fas fa-check"></i></span>
+          <span style="color:#e5e7eb">Can be sold as part of a commercial product</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;font-size:14px">
+          <span style="color:#22c55e"><i class="fas fa-check"></i></span>
+          <span style="color:#e5e7eb">IP ownership stays with us</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ============================== SLIDE 13: LESSONS LEARNED ============================== -->
-<div class="slide" data-slide="13">
+<div class="slide" data-slide="13" data-steps="12">
   <div class="slide-inner">
     <div class="slide-num">13 / 14</div>
     <div class="slide-header">
@@ -1520,29 +1666,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
       </div>
       <div class="badge badge-blue">TAKEAWAYS</div>
     </div>
-    <div style="flex:1;display:flex;gap:32px;align-items:flex-start">
-      <div style="flex:1">
-        <ul class="lesson-list">
-          <li><span class="bullet">&rsaquo;</span> AI removes activation energy, not effort</li>
-          <li><span class="bullet">&rsaquo;</span> Set a spending limit before you go to bed</li>
-          <li><span class="bullet">&rsaquo;</span> TypeScript is no longer just about DX &mdash; it's about AI readability</li>
-          <li><span class="bullet">&rsaquo;</span> Microkernel + plugins: good for humans, great for AI agents</li>
-          <li><span class="bullet">&rsaquo;</span> Custom linter rules are architecture docs &mdash; write them for the AI too</li>
-          <li><span class="bullet">&rsaquo;</span> Let your e2e suite be the contract</li>
-          <li><span class="bullet">&rsaquo;</span> <code>any</code> is technical debt with a friendly face</li>
-          <li><span class="bullet">&rsaquo;</span> <code>.d.ts</code> files are promises you may have quietly broken</li>
-          <li><span class="bullet">&rsaquo;</span> A migration branch vs an active codebase is a ticking clock</li>
-          <li><span class="bullet">&rsaquo;</span> Sometimes the most important bets are the ones you almost didn't make</li>
-        </ul>
-      </div>
-      <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:16px">
-        <img src="Richard Hendricks exhausted but done.avif" alt="Richard Hendricks exhausted but done" style="width:100%;border-radius:8px;max-height:160px;object-fit:cover;border:1px solid #30363d;">
-        <div class="code-block" style="font-size:12px;text-align:center">
-          <span class="c-comment">// The real lesson</span><br>
-          <span class="c-kw">const</span> courage = <span class="c-str">"yolo"</span>;<br>
-          <span class="c-kw">const</span> wisdom = <span class="c-str">"e2e tests"</span>;
-        </div>
-      </div>
+    <div style="flex:1;display:flex;align-items:center">
+      <ul class="lesson-list" style="width:100%">
+        <li class="step-card" data-step="1"><span class="bullet">1</span> AI removes activation energy, not effort</li>
+        <li class="step-card" data-step="2"><span class="bullet">2</span> Set a spending limit before you go to bed</li>
+        <li class="step-card" data-step="3"><span class="bullet">3</span> TypeScript is no longer just about DX &mdash; it's about AI readability</li>
+        <li class="step-card" data-step="4"><span class="bullet">4</span> Microkernel + plugins: good for humans, great for AI agents</li>
+        <li class="step-card" data-step="5"><span class="bullet">5</span> Custom linter rules are architecture docs &mdash; write them for the AI too</li>
+        <li class="step-card" data-step="6"><span class="bullet">6</span> Let your e2e suite be the contract</li>
+        <li class="step-card" data-step="7"><span class="bullet">7</span> <code>any</code> is technical debt with a friendly face</li>
+        <li class="step-card" data-step="8"><span class="bullet">8</span> <code>.d.ts</code> files are promises you may have quietly broken</li>
+        <li class="step-card" data-step="9"><span class="bullet">9</span> A migration branch vs an active codebase is a ticking clock</li>
+        <li class="step-card" data-step="10"><span class="bullet">10</span> AI-generated code in commercial products &mdash; ask your lawyers early</li>
+        <li class="step-card" data-step="11"><span class="bullet">11</span> Your library is not the whole system &mdash; plan for wrappers and the ecosystem</li>
+        <li class="step-card" data-step="12"><span class="bullet">12</span> Sometimes the most important bets are the ones you almost didn't make</li>
+      </ul>
     </div>
   </div>
 </div>
@@ -1615,7 +1753,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
 (function() {
   const slides = document.querySelectorAll('.slide');
   const total = slides.length;
-  const LOGICAL_TOTAL = 17; // Title(0) + 16 content slides
+  const LOGICAL_TOTAL = 19; // Title(0) + 18 content slides
   let current = 0;
 
   const counter = document.getElementById('counter');
@@ -1676,6 +1814,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; f
       } else {
         cards[i].classList.remove('revealed');
       }
+    }
+    // Handle deprecated/kept card styling
+    var deprecated = slide.querySelectorAll('.deprecated-card');
+    var kept = slide.querySelectorAll('.kept-card');
+    var hasStamp = slide.querySelector('.stamp-overlay.revealed');
+    for (var j = 0; j < deprecated.length; j++) {
+      if (hasStamp) { deprecated[j].classList.add('dimmed'); } else { deprecated[j].classList.remove('dimmed'); }
+    }
+    for (var k = 0; k < kept.length; k++) {
+      if (hasStamp) { kept[k].classList.add('highlighted'); } else { kept[k].classList.remove('highlighted'); }
     }
   }
 
